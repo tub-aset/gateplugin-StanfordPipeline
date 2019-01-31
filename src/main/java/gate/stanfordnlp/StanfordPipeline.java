@@ -84,6 +84,12 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 	}
 
 	@Override
+	public void cleanup() {
+		pipeline = null;
+		super.cleanup();
+	}
+
+	@Override
 	public void execute() throws ExecutionException {
 		try {
 			AnnotationSet outputAnnotationSet = document.getAnnotations(outputASName);
@@ -104,7 +110,7 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 			Object object = annotation.get((Class) clazz);
 			if (object instanceof Iterable<?>) {
 				Iterable<?> iterable = (Iterable<?>) object;
-				List<Object> list = new ArrayList<Object>();
+				List<Object> list = new ArrayList<>();
 				for (Object item : iterable) {
 					if (item instanceof CoreMap) {
 						addCoreAnnotation(outputAnnotationSet, (CoreMap) item, clazz, excludeKeyClasses);
@@ -151,7 +157,7 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 		if (annotation.keySet().contains(CorefCoreAnnotations.CorefChainAnnotation.class)) {
 			List<CoreMap> sentences = annotation.get(SentencesAnnotation.class);
 			for (CorefChain cc : annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class).values()) {
-				List<Integer> relationIds = new ArrayList<Integer>();
+				List<Integer> relationIds = new ArrayList<>();
 				for (CorefMention mention : cc.getMentionsInTextualOrder()) {
 					FeatureMap map = Factory.newFeatureMap();
 					map.put(ANNOTATION_MENTION_FEATURE_ANIMACY_NAME, mention.animacy.toString());
