@@ -22,6 +22,7 @@ import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
+import edu.stanford.nlp.util.StringUtils;
 import gate.AnnotationSet;
 import gate.Factory;
 import gate.FeatureMap;
@@ -52,7 +53,8 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 	private static final long serialVersionUID = 1L;
 
 	private String annotators;
-	private URL properties;
+	private String properties;
+	private URL propertiesFile;
 	private String outputASName;
 
 	private StanfordCoreNLP pipeline;
@@ -60,10 +62,9 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 	@Override
 	public Resource init() throws ResourceInstantiationException {
 		Properties props = new Properties();
-		props.setProperty("ner.useSUTime", "0");
-		if (properties != null) {
+		if (propertiesFile != null) {
 			try {
-				URLConnection connection = properties.openConnection();
+				URLConnection connection = propertiesFile.openConnection();
 				InputStream inputStream = connection.getInputStream();
 				props.load(inputStream);
 				inputStream.close();
@@ -71,10 +72,18 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 				throw new ResourceInstantiationException(e);
 			}
 		}
+		if (properties.length() > 0) {
+			String[] args = Util.stringToArgs(properties);
+			props.putAll(StringUtils.argsToProperties(args));
+		}
 		if (annotators.length() > 0) {
 			props.setProperty("annotators", annotators);
 		}
-		pipeline = new StanfordCoreNLP(props);
+		try {
+			pipeline = new StanfordCoreNLP(props);
+		} catch (Exception e) {
+			throw new ResourceInstantiationException(e);
+		}
 		return this;
 	}
 
@@ -201,7 +210,7 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 		return false;
 	}
 
-	@CreoleParameter(comment = "Stanford annotators", defaultValue = "tokenize,ssplit,pos,lemma,ner,parse,mention,coref")
+	@CreoleParameter(comment = "StanfordNLP pipeline annotators (overrides annotators property from properties and propertiesFile)", defaultValue = "tokenize,ssplit,pos,lemma,ner,parse,mention,coref")
 	public void setAnnotators(String annotators) {
 		this.annotators = annotators;
 	}
@@ -210,13 +219,22 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 		return annotators;
 	}
 
-	@CreoleParameter(comment = "properties file for stanford pipeline")
-	public void setProperties(URL properties) {
+	@CreoleParameter(comment = "StanfordNLP pipeline properties (command-line style, e.g. -ner.useSUTime 0)", defaultValue = "")
+	public void setProperties(String properties) {
 		this.properties = properties;
 	}
 
-	public URL getProperties() {
+	public String getProperties() {
 		return properties;
+	}
+
+	@CreoleParameter(comment = "StanfordNLP pipeline properties file (these properties are overridden by properties command-line string)")
+	public void setPropertiesFile(URL properties) {
+		this.propertiesFile = properties;
+	}
+
+	public URL getPropertiesFile() {
+		return propertiesFile;
 	}
 
 	@Optional
