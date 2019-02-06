@@ -131,7 +131,7 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 					addToFeatures(map, clazz, list);
 				}
 
-			} else if (!isAssignableFromAny(clazz, excludeKeyClasses)) {
+			} else if (!Util.isAssignableFromAny(clazz, excludeKeyClasses)) {
 				addToFeatures(map, clazz, object);
 			}
 		}
@@ -182,7 +182,7 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 							ANNOTATION_MENTION_NAME, map);
 				}
 				if (!relationIds.isEmpty()) {
-					outputAnnotationSet.getRelations().addRelation(RELATION_COREF_NAME, toIntArray(relationIds));
+					outputAnnotationSet.getRelations().addRelation(RELATION_COREF_NAME, Util.toIntArray(relationIds));
 				}
 			}
 		}
@@ -192,22 +192,6 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 		Annotation annotation = new Annotation(content);
 		pipeline.annotate(annotation);
 		return annotation;
-	}
-
-	private static int[] toIntArray(List<Integer> list) {
-		int[] ret = new int[list.size()];
-		int i = 0;
-		for (Integer e : list)
-			ret[i++] = e.intValue();
-		return ret;
-	}
-
-	private static boolean isAssignableFromAny(Class<?> clazz, Class<?>... others) {
-		for (Class<?> class1 : others) {
-			if (clazz.isAssignableFrom(class1))
-				return true;
-		}
-		return false;
 	}
 
 	@CreoleParameter(comment = "StanfordNLP pipeline annotators (overrides annotators property from properties and propertiesFile)", defaultValue = "tokenize,ssplit,pos,lemma,ner,parse,mention,coref")
