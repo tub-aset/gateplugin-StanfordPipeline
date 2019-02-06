@@ -48,6 +48,10 @@
 	<!-- there are plenty of other pieces of useful information you can also 
 		provide here. See the pom.xml reference for full details -->
 
+	<properties>
+		<stanford.corenlp.version>3.9.2</stanford.corenlp.version>
+	</properties>
+
 
 	<dependencies>
 		<!-- Add the Maven coordinates of all libraries this plugin depends on. 
@@ -56,12 +60,12 @@
 		<dependency>
 			<groupId>edu.stanford.nlp</groupId>
 			<artifactId>stanford-corenlp</artifactId>
-			<version>3.7.0</version>
+			<version>${stanford.corenlp.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>edu.stanford.nlp</groupId>
 			<artifactId>stanford-corenlp</artifactId>
-			<version>3.7.0</version>
+			<version>${stanford.corenlp.version}</version>
 			<classifier>models</classifier>
 		</dependency>
 	</dependencies>
