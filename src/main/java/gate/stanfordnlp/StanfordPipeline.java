@@ -7,20 +7,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import edu.stanford.nlp.coref.CorefCoreAnnotations;
-import edu.stanford.nlp.coref.CorefCoreAnnotations.CorefChainAnnotation;
-import edu.stanford.nlp.coref.data.CorefChain;
-import edu.stanford.nlp.coref.data.CorefChain.CorefMention;
 import edu.stanford.nlp.ling.CoreAnnotations.CharacterOffsetBeginAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.CharacterOffsetEndAnnotation;
-import edu.stanford.nlp.ling.CoreAnnotations.OriginalTextAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
-import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
-import edu.stanford.nlp.ling.CoreAnnotations.ValueAnnotation;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.AlternativeDependenciesAnnotation;
+import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.BasicDependenciesAnnotation;
+import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.EnhancedDependenciesAnnotation;
+import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.EnhancedPlusPlusDependenciesAnnotation;
+import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
 import edu.stanford.nlp.util.StringUtils;
 import gate.AnnotationSet;
@@ -34,23 +32,31 @@ import gate.creole.metadata.CreoleParameter;
 import gate.creole.metadata.CreoleResource;
 import gate.creole.metadata.Optional;
 import gate.creole.metadata.RunTime;
-import gate.util.InvalidOffsetException;
+import gate.stanfordnlp.AnnotationTraversal.Callback;
 
 @CreoleResource(name = "StanfordPipeline", comment = "This is a simple Stanford Pipeline")
 public class StanfordPipeline extends AbstractLanguageAnalyser {
+	private static final long serialVersionUID = 1L;
 
-	private static final String ANNOTATION_MENTION_NAME = "mention";
+	private static final String ANNOTATION_COREF_NAME = "Coref";
 	private static final String ANNOTATION_MENTION_FEATURE_ANIMACY_NAME = "animacy";
 	private static final String ANNOTATION_MENTION_FEATURE_MENTIONTYPE_NAME = "type";
 	private static final String ANNOTATION_MENTION_FEATURE_REPRESENTATIVE_NAME = "representative";
 	private static final String ANNOTATION_MENTION_FEATURE_ISREPRESENTATIVE_NAME = "isrepresentative";
 
-	private static final String RELATION_COREF_NAME = "coref";
+	private static final String RELATION_COREF_NAME = "Coref";
 
-	private static final Class<?>[] EXCLUDE_DEFAULT_ANNOTATIONS = new Class[] { TextAnnotation.class,
-			OriginalTextAnnotation.class, ValueAnnotation.class, CorefChain.class, CorefChainAnnotation.class };
-
-	private static final long serialVersionUID = 1L;
+	@SuppressWarnings("deprecation")
+	private static final Class<?>[] INDIVIDUAL_ANNOTATIONS = new Class[] { TreeAnnotation.class,
+			BasicDependenciesAnnotation.class, EnhancedDependenciesAnnotation.class,
+			EnhancedPlusPlusDependenciesAnnotation.class, AlternativeDependenciesAnnotation.class,
+			edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedCCProcessedDependenciesAnnotation.class,
+			edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedDependenciesAnnotation.class,
+			edu.stanford.nlp.coref.data.CorefChain.class,
+			edu.stanford.nlp.coref.CorefCoreAnnotations.CorefChainAnnotation.class,
+			edu.stanford.nlp.dcoref.CorefChain.class,
+			edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation.class,
+			edu.stanford.nlp.coref.CorefCoreAnnotations.CorefMentionsAnnotation.class };
 
 	private String annotators;
 	private String properties;
@@ -104,70 +110,60 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 			AnnotationSet outputAnnotationSet = document.getAnnotations(outputASName);
 
 			Annotation annotation = annotateContent(document.getContent().toString());
-			addCoreAnnotation(outputAnnotationSet, annotation, annotation.getClass(), EXCLUDE_DEFAULT_ANNOTATIONS);
+
+			addGateAnnotations(outputAnnotationSet, annotation);
 			addCorefAnnotations(outputAnnotationSet, annotation);
+			addDcorefAnnotations(outputAnnotationSet, annotation);
 		} catch (Exception e) {
 			throw new ExecutionException(e);
 		}
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	protected void addCoreAnnotation(AnnotationSet outputAnnotationSet, CoreMap annotation, Class<?> keyAnnotationClass,
-			Class<?>... excludeKeyClasses) throws InvalidOffsetException {
-		FeatureMap map = Factory.newFeatureMap();
-		for (Class<?> clazz : annotation.keySet()) {
-			Object object = annotation.get((Class) clazz);
-			if (object instanceof Iterable<?>) {
-				Iterable<?> iterable = (Iterable<?>) object;
-				List<Object> list = new ArrayList<>();
-				for (Object item : iterable) {
-					if (item instanceof CoreMap) {
-						addCoreAnnotation(outputAnnotationSet, (CoreMap) item, clazz, excludeKeyClasses);
+	private Annotation annotateContent(String content) {
+		Annotation annotation = new Annotation(content);
+		pipeline.annotate(annotation);
+		return annotation;
+	}
+
+	private void addGateAnnotations(AnnotationSet outputAnnotationSet, CoreMap annotation) throws Exception {
+
+		AnnotationTraversal.preOrder(annotation, new Callback() {
+
+			@Override
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			public void handle(Class<?> keyClass, CoreMap annotation, CoreMap values) throws Exception {
+				if (annotation.keySet().contains(CharacterOffsetBeginAnnotation.class)
+						&& annotation.keySet().contains(CharacterOffsetEndAnnotation.class)) {
+					Long start = annotation.get(CharacterOffsetBeginAnnotation.class).longValue();
+					Long end = annotation.get(CharacterOffsetEndAnnotation.class).longValue();
+					String type = getGateName(keyClass);
+					AnnotationSet others = outputAnnotationSet.get(type, start, end);
+					Integer id;
+					if (others.size() == 1) {
+						id = others.iterator().next().getId();
 					} else {
-						list.add(item);
+						id = outputAnnotationSet.add(start, end, type, Factory.newFeatureMap());
+					}
+					for (Class<?> valueKeyClass : values.keySet()) {
+						if (!Util.isAssignableFromAny(valueKeyClass, INDIVIDUAL_ANNOTATIONS)) {
+							Object value = values.get((Class) valueKeyClass);
+							outputAnnotationSet.get(id).getFeatures().put(getGateName(valueKeyClass), value);
+						}
 					}
 				}
-				if (!list.isEmpty()) {
-					addToFeatures(map, clazz, list);
-				}
-
-			} else if (!Util.isAssignableFromAny(clazz, excludeKeyClasses)) {
-				addToFeatures(map, clazz, object);
 			}
-		}
-		if (annotation.keySet().contains(CharacterOffsetBeginAnnotation.class)
-				&& annotation.keySet().contains(CharacterOffsetEndAnnotation.class)) {
-			Long start = annotation.get(CharacterOffsetBeginAnnotation.class).longValue();
-			Long end = annotation.get(CharacterOffsetEndAnnotation.class).longValue();
-			String type = getGateName(keyAnnotationClass);
-			AnnotationSet others = outputAnnotationSet.getCovering(type, start, end);
-			if (others.size() == 1) {
-				others.iterator().next().getFeatures().putAll(map);
-			} else {
-				outputAnnotationSet.add(start, end, type, map);
-			}
-		}
+
+		});
 	}
 
-	private String getGateName(Class<?> clazz) {
-		String key = clazz.getSimpleName();
-		if (key.endsWith("Annotation")) {
-			key = key.substring(0, key.length() - "Annotation".length());
-		}
-		return key;
-	}
+	private void addCorefAnnotations(AnnotationSet outputAnnotationSet, Annotation annotation) throws Exception {
 
-	private void addToFeatures(FeatureMap map, Class<?> clazz, Object object) {
-		map.put(getGateName(clazz), object);
-	}
-
-	protected void addCorefAnnotations(AnnotationSet outputAnnotationSet, Annotation annotation)
-			throws InvalidOffsetException {
-		if (annotation.keySet().contains(CorefCoreAnnotations.CorefChainAnnotation.class)) {
+		if (annotation.keySet().contains(edu.stanford.nlp.coref.CorefCoreAnnotations.CorefChainAnnotation.class)) {
 			List<CoreMap> sentences = annotation.get(SentencesAnnotation.class);
-			for (CorefChain cc : annotation.get(CorefCoreAnnotations.CorefChainAnnotation.class).values()) {
+			for (edu.stanford.nlp.coref.data.CorefChain cc : annotation
+					.get(edu.stanford.nlp.coref.CorefCoreAnnotations.CorefChainAnnotation.class).values()) {
 				List<Integer> relationIds = new ArrayList<>();
-				for (CorefMention mention : cc.getMentionsInTextualOrder()) {
+				for (edu.stanford.nlp.coref.data.CorefChain.CorefMention mention : cc.getMentionsInTextualOrder()) {
 					FeatureMap map = Factory.newFeatureMap();
 					map.put(ANNOTATION_MENTION_FEATURE_ANIMACY_NAME, mention.animacy.toString());
 					map.put(ANNOTATION_MENTION_FEATURE_MENTIONTYPE_NAME, mention.mentionType.toString());
@@ -179,7 +175,7 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 					CoreLabel startToken = tokens.get(mention.startIndex - 1);
 					CoreLabel endToken = tokens.get(mention.endIndex - 2);
 					outputAnnotationSet.add((long) startToken.beginPosition(), (long) endToken.endPosition(),
-							ANNOTATION_MENTION_NAME, map);
+							ANNOTATION_COREF_NAME, map);
 				}
 				if (!relationIds.isEmpty()) {
 					outputAnnotationSet.getRelations().addRelation(RELATION_COREF_NAME, Util.toIntArray(relationIds));
@@ -188,10 +184,40 @@ public class StanfordPipeline extends AbstractLanguageAnalyser {
 		}
 	}
 
-	private Annotation annotateContent(String content) {
-		Annotation annotation = new Annotation(content);
-		pipeline.annotate(annotation);
-		return annotation;
+	private void addDcorefAnnotations(AnnotationSet outputAnnotationSet, Annotation annotation) throws Exception {
+
+		if (annotation.keySet().contains(edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation.class)) {
+			List<CoreMap> sentences = annotation.get(SentencesAnnotation.class);
+			for (edu.stanford.nlp.dcoref.CorefChain cc : annotation
+					.get(edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation.class).values()) {
+				List<Integer> relationIds = new ArrayList<>();
+				for (edu.stanford.nlp.dcoref.CorefChain.CorefMention mention : cc.getMentionsInTextualOrder()) {
+					FeatureMap map = Factory.newFeatureMap();
+					map.put(ANNOTATION_MENTION_FEATURE_ANIMACY_NAME, mention.animacy.toString());
+					map.put(ANNOTATION_MENTION_FEATURE_MENTIONTYPE_NAME, mention.mentionType.toString());
+					map.put(ANNOTATION_MENTION_FEATURE_REPRESENTATIVE_NAME, cc.getRepresentativeMention().mentionSpan);
+					map.put(ANNOTATION_MENTION_FEATURE_ISREPRESENTATIVE_NAME, cc.getRepresentativeMention() == mention);
+
+					CoreMap sentence = sentences.get(mention.sentNum - 1);
+					List<CoreLabel> tokens = sentence.get(TokensAnnotation.class);
+					CoreLabel startToken = tokens.get(mention.startIndex - 1);
+					CoreLabel endToken = tokens.get(mention.endIndex - 2);
+					outputAnnotationSet.add((long) startToken.beginPosition(), (long) endToken.endPosition(),
+							ANNOTATION_COREF_NAME, map);
+				}
+				if (!relationIds.isEmpty()) {
+					outputAnnotationSet.getRelations().addRelation(RELATION_COREF_NAME, Util.toIntArray(relationIds));
+				}
+			}
+		}
+	}
+
+	private static String getGateName(Class<?> clazz) {
+		String key = clazz.getSimpleName();
+		if (key.endsWith("Annotation")) {
+			key = key.substring(0, key.length() - "Annotation".length());
+		}
+		return key;
 	}
 
 	@CreoleParameter(comment = "StanfordNLP pipeline annotators (overrides annotators property from properties and propertiesFile)", defaultValue = "tokenize,ssplit,pos,lemma,ner,parse,mention,coref")
