@@ -22,6 +22,7 @@ import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
 import edu.stanford.nlp.util.TypesafeMap;
+import gate.Annotation;
 import gate.AnnotationSet;
 import gate.Factory;
 import gate.FeatureMap;
@@ -84,9 +85,9 @@ public class AnnotationMapper {
 		});
 	}
 
-	private static gate.Annotation addGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
-			Long start, Long end, TypesafeMap annotation, TypesafeMap values) throws InvalidOffsetException {
-		gate.Annotation gateAnnotation = getOrAddGateAnnotation(outputAnnotationSet, annotationType, start, end);
+	private static Annotation addGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType, Long start,
+			Long end, TypesafeMap annotation, TypesafeMap values) throws InvalidOffsetException {
+		Annotation gateAnnotation = getOrAddGateAnnotation(outputAnnotationSet, annotationType, start, end);
 
 		for (Entry<Class<?>, Object> entry : putValuesIntoFeatures(values, gateAnnotation.getFeatures()).entrySet()) {
 			Class<?> valueKeyClass = entry.getKey();
@@ -95,14 +96,19 @@ public class AnnotationMapper {
 				Tree tree = (Tree) value;
 				Integer parentId = gateAnnotation.getId();
 				String valueAnnotationType = getGateName(valueKeyClass);
-				addTreeAnnotation(outputAnnotationSet, valueAnnotationType, tree, parentId);
+				Annotation treeAnnotation = addTreeAnnotation(outputAnnotationSet, valueAnnotationType, tree, parentId);
+				gateAnnotation.getFeatures().put(getGateName(valueKeyClass), treeAnnotation.getId());
 			} else if (value instanceof SemanticGraph) {
 				SemanticGraph graph = (SemanticGraph) value;
 				Integer parentId = gateAnnotation.getId();
 				String valueAnnotationType = getGateName(valueKeyClass);
+				List<Integer> semanticGraphAnnotationIds = new ArrayList<>();
 				for (IndexedWord root : graph.getRoots()) {
-					addSemanticGraphAnnotation(outputAnnotationSet, valueAnnotationType, graph, root, parentId);
+					Annotation semanticGraphAnnotation = addSemanticGraphAnnotation(outputAnnotationSet,
+							valueAnnotationType, graph, root, parentId);
+					semanticGraphAnnotationIds.add(semanticGraphAnnotation.getId());
 				}
+				gateAnnotation.getFeatures().put(getGateName(valueKeyClass), semanticGraphAnnotationIds);
 			}
 		}
 		return gateAnnotation;
@@ -123,7 +129,7 @@ public class AnnotationMapper {
 		return others;
 	}
 
-	private static gate.Annotation getOrAddGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
+	private static Annotation getOrAddGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
 			Long start, Long end) throws InvalidOffsetException {
 		AnnotationSet others = outputAnnotationSet.get(annotationType, start, end);
 		if (others.size() == 1) {
@@ -133,8 +139,8 @@ public class AnnotationMapper {
 		}
 	}
 
-	private static gate.Annotation addGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
-			Long start, Long end) throws InvalidOffsetException {
+	private static Annotation addGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType, Long start,
+			Long end) throws InvalidOffsetException {
 		Integer id = outputAnnotationSet.add(start, end, annotationType, Factory.newFeatureMap());
 		return outputAnnotationSet.get(id);
 	}
@@ -150,8 +156,7 @@ public class AnnotationMapper {
 				List<CoreLabel> tokens = sentence.get(TokensAnnotation.class);
 				Long start = Long.valueOf(tokens.get(mention.startIndex - 1).beginPosition());
 				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).beginPosition());
-				gate.Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start,
-						end);
+				Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start, end);
 
 				FeatureMap gateFeatures = gateAnnotation.getFeatures();
 				gateFeatures.put(COREF_FEATURE_ANIMACY_NAME, mention.animacy.toString());
@@ -178,8 +183,7 @@ public class AnnotationMapper {
 				List<CoreLabel> tokens = sentence.get(TokensAnnotation.class);
 				Long start = Long.valueOf(tokens.get(mention.startIndex - 1).beginPosition());
 				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).beginPosition());
-				gate.Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start,
-						end);
+				Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start, end);
 
 				FeatureMap gateFeatures = gateAnnotation.getFeatures();
 				gateFeatures.put(COREF_FEATURE_ANIMACY_NAME, mention.animacy.toString());
@@ -195,9 +199,9 @@ public class AnnotationMapper {
 		}
 	}
 
-	private static gate.Annotation addSemanticGraphAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
+	private static Annotation addSemanticGraphAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
 			SemanticGraph graph, IndexedWord word, Integer parentId) throws InvalidOffsetException {
-		gate.Annotation gateAnnotation = null;
+		Annotation gateAnnotation = null;
 		if (word.beginPosition() >= 0 && word.endPosition() >= 0) {
 			Long start = Long.valueOf(word.beginPosition());
 			Long end = Long.valueOf(word.endPosition());
@@ -207,8 +211,8 @@ public class AnnotationMapper {
 		Integer gateId = gateAnnotation != null ? gateAnnotation.getId() : parentId;
 		List<Integer> childAnnotationIds = new ArrayList<>();
 		for (IndexedWord child : graph.getChildList(word)) {
-			gate.Annotation childAnnotation = addSemanticGraphAnnotation(outputAnnotationSet, annotationType, graph,
-					child, gateId);
+			Annotation childAnnotation = addSemanticGraphAnnotation(outputAnnotationSet, annotationType, graph, child,
+					gateId);
 			if (childAnnotation != null) {
 				childAnnotationIds.add(childAnnotation.getId());
 			}
@@ -220,8 +224,8 @@ public class AnnotationMapper {
 		return gateAnnotation;
 	}
 
-	private static gate.Annotation addTreeAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
-			Tree tree, Integer parentId) throws InvalidOffsetException {
+	private static Annotation addTreeAnnotation(AnnotationSet outputAnnotationSet, String annotationType, Tree tree,
+			Integer parentId) throws InvalidOffsetException {
 		tree.setSpans();
 
 		Tree startLeave = tree.getLeaves().get(tree.getSpan().getSource());
@@ -234,7 +238,7 @@ public class AnnotationMapper {
 			end = ((TypesafeMap) endLeave.label()).get(CharacterOffsetEndAnnotation.class);
 		}
 
-		gate.Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, annotationType, start.longValue(),
+		Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, annotationType, start.longValue(),
 				end.longValue());
 		gateAnnotation.getFeatures().put(TREE_FEATURE_LABEL, tree.label() != null ? tree.label().value() : null);
 		gateAnnotation.getFeatures().put(TREE_FEATURE_VALUE, tree.value());
@@ -247,7 +251,7 @@ public class AnnotationMapper {
 		List<Integer> childAnnotationIds = new ArrayList<>();
 		for (int i = 0; i < tree.children().length; i++) {
 			Tree child = tree.children()[i];
-			gate.Annotation childAnnotation = addTreeAnnotation(outputAnnotationSet, annotationType, child,
+			Annotation childAnnotation = addTreeAnnotation(outputAnnotationSet, annotationType, child,
 					gateAnnotation.getId());
 			childAnnotationIds.add(childAnnotation.getId());
 		}
