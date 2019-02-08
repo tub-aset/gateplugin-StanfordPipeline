@@ -18,8 +18,8 @@ import gate.creole.metadata.CreoleResource;
 import gate.creole.metadata.Optional;
 import gate.creole.metadata.RunTime;
 
-@CreoleResource(name = "StanfordPipeline", comment = "This is a simple Stanford Pipeline")
-public class StanfordPipeline extends AbstractLanguageAnalyser {
+@CreoleResource(name = "StanfordPipeline", comment = "This is a simple Stanford NLP Pipeline")
+public class StanfordNlpPipeline extends AbstractLanguageAnalyser {
 	private static final long serialVersionUID = 1L;
 
 	private String annotators;

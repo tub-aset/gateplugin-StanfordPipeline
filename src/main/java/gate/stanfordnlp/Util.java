@@ -51,4 +51,12 @@ public class Util {
 			map.put(key, list);
 		}
 	}
+
+	public static boolean hasValue(String string) {
+		return string != null && string.length() > 0;
+	}
+
+	public static boolean noValue(String string) {
+		return !hasValue(string);
+	}
 }
