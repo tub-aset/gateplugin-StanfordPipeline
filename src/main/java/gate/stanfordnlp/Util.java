@@ -2,6 +2,7 @@ package gate.stanfordnlp;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,4 +41,14 @@ public class Util {
 		return args.toArray(new String[] {});
 	}
 
+	public static <K, V> void addToListMap(Map<K, List<V>> map, K key, V value) {
+		List<V> list = map.get(key);
+		if (list != null) {
+			list.add(value);
+		} else {
+			list = new ArrayList<>();
+			list.add(value);
+			map.put(key, list);
+		}
+	}
 }
