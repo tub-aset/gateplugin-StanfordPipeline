@@ -35,10 +35,12 @@ public class AnnotationMapper {
 	private static final String FEATURE_CHILDREN = "_children";
 
 	private static final String ANNOTATIONTYPE_COREF = "Coref";
-	private static final String COREF_FEATURE_ANIMACY_NAME = "animacy";
-	private static final String COREF_FEATURE_MENTIONTYPE_NAME = "type";
-	private static final String COREF_FEATURE_REPRESENTATIVE_NAME = "representative";
-	private static final String COREF_FEATURE_ISREPRESENTATIVE_NAME = "isrepresentative";
+	private static final String COREF_FEATURE_MENTIONTYPE = "type";
+	private static final String COREF_FEATURE_NUMBER = "number";
+	private static final String COREF_FEATURE_GENDER = "gender";
+	private static final String COREF_FEATURE_ANIMACY = "animacy";
+	private static final String COREF_FEATURE_REPRESENTATIVE = "representative";
+	private static final String COREF_FEATURE_ISREPRESENTATIVE = "isrepresentative";
 	private static final String RELATION_COREF = "Coref";
 
 	private static final String TREE_FEATURE_LABEL = "label";
@@ -155,14 +157,16 @@ public class AnnotationMapper {
 				CoreMap sentence = sentences.get(mention.sentNum - 1);
 				List<CoreLabel> tokens = sentence.get(TokensAnnotation.class);
 				Long start = Long.valueOf(tokens.get(mention.startIndex - 1).beginPosition());
-				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).beginPosition());
+				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).endPosition());
 				Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start, end);
 
 				FeatureMap gateFeatures = gateAnnotation.getFeatures();
-				gateFeatures.put(COREF_FEATURE_ANIMACY_NAME, mention.animacy.toString());
-				gateFeatures.put(COREF_FEATURE_MENTIONTYPE_NAME, mention.mentionType.toString());
-				gateFeatures.put(COREF_FEATURE_REPRESENTATIVE_NAME, cc.getRepresentativeMention().mentionSpan);
-				gateFeatures.put(COREF_FEATURE_ISREPRESENTATIVE_NAME, cc.getRepresentativeMention() == mention);
+				gateFeatures.put(COREF_FEATURE_MENTIONTYPE, mention.mentionType.toString());
+				gateFeatures.put(COREF_FEATURE_NUMBER, mention.number.toString());
+				gateFeatures.put(COREF_FEATURE_GENDER, mention.gender.toString());
+				gateFeatures.put(COREF_FEATURE_ANIMACY, mention.animacy.toString());
+				gateFeatures.put(COREF_FEATURE_REPRESENTATIVE, cc.getRepresentativeMention().mentionSpan);
+				gateFeatures.put(COREF_FEATURE_ISREPRESENTATIVE, cc.getRepresentativeMention() == mention);
 
 				relationIds.add(gateAnnotation.getId());
 			}
@@ -182,14 +186,16 @@ public class AnnotationMapper {
 				CoreMap sentence = sentences.get(mention.sentNum - 1);
 				List<CoreLabel> tokens = sentence.get(TokensAnnotation.class);
 				Long start = Long.valueOf(tokens.get(mention.startIndex - 1).beginPosition());
-				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).beginPosition());
+				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).endPosition());
 				Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start, end);
 
 				FeatureMap gateFeatures = gateAnnotation.getFeatures();
-				gateFeatures.put(COREF_FEATURE_ANIMACY_NAME, mention.animacy.toString());
-				gateFeatures.put(COREF_FEATURE_MENTIONTYPE_NAME, mention.mentionType.toString());
-				gateFeatures.put(COREF_FEATURE_REPRESENTATIVE_NAME, cc.getRepresentativeMention().mentionSpan);
-				gateFeatures.put(COREF_FEATURE_ISREPRESENTATIVE_NAME, cc.getRepresentativeMention() == mention);
+				gateFeatures.put(COREF_FEATURE_MENTIONTYPE, mention.mentionType.toString());
+				gateFeatures.put(COREF_FEATURE_NUMBER, mention.number.toString());
+				gateFeatures.put(COREF_FEATURE_GENDER, mention.gender.toString());
+				gateFeatures.put(COREF_FEATURE_ANIMACY, mention.animacy.toString());
+				gateFeatures.put(COREF_FEATURE_REPRESENTATIVE, cc.getRepresentativeMention().mentionSpan);
+				gateFeatures.put(COREF_FEATURE_ISREPRESENTATIVE, cc.getRepresentativeMention() == mention);
 
 				relationIds.add(gateAnnotation.getId());
 			}
