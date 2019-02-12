@@ -20,7 +20,7 @@ import gate.creole.metadata.CreoleResource;
 import gate.creole.metadata.Optional;
 import gate.creole.metadata.RunTime;
 
-@CreoleResource(name = "StanfordPipeline", comment = "This is a interface for StanfordCoreNLPClient")
+@CreoleResource(name = "StanfordNlpClient", comment = "This is a interface for StanfordCoreNLPClient")
 public class StanfordNlpClient extends AbstractLanguageAnalyser {
 	private static final long serialVersionUID = 1L;
 
@@ -101,6 +101,7 @@ public class StanfordNlpClient extends AbstractLanguageAnalyser {
 		return annotation;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLPClient host property (if not specified, StanfordNLPClient will use environment variable 'CORENLP_HOST')")
 	public void setHost(String host) {
 		this.host = host;
@@ -110,6 +111,7 @@ public class StanfordNlpClient extends AbstractLanguageAnalyser {
 		return host;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLPClient host property (if not specified, StanfordNLPClient will use '80' or '443')")
 	public void setPort(Integer port) {
 		this.port = port;
@@ -119,6 +121,7 @@ public class StanfordNlpClient extends AbstractLanguageAnalyser {
 		return port;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLPClient port property (if not specified, StanfordNLPClient will use 1 thread)")
 	public void setThreads(Integer threads) {
 		this.threads = threads;
@@ -128,6 +131,7 @@ public class StanfordNlpClient extends AbstractLanguageAnalyser {
 		return threads;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLPClient host property (if not specified, StanfordNLPClient will use environment variable 'CORENLP_KEY')")
 	public void setApiKey(String apiKey) {
 		this.apiKey = apiKey;
@@ -137,6 +141,7 @@ public class StanfordNlpClient extends AbstractLanguageAnalyser {
 		return apiKey;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLPClient host property (if not specified, StanfordNLPClient will use environment variable 'CORENLP_SECRET')")
 	public void setApiSecret(String apiSecret) {
 		this.apiSecret = apiSecret;
@@ -146,6 +151,7 @@ public class StanfordNlpClient extends AbstractLanguageAnalyser {
 		return apiSecret;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLP pipeline properties file (these properties are overridden by properties command-line string)")
 	public void setPropertiesFile(URL properties) {
 		this.propertiesFile = properties;

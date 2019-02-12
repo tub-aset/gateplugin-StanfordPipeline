@@ -18,7 +18,7 @@ import gate.creole.metadata.CreoleResource;
 import gate.creole.metadata.Optional;
 import gate.creole.metadata.RunTime;
 
-@CreoleResource(name = "StanfordPipeline", comment = "This is a simple Stanford NLP Pipeline")
+@CreoleResource(name = "StanfordNlpPipeline", comment = "This is a simple Stanford NLP Pipeline")
 public class StanfordNlpPipeline extends AbstractLanguageAnalyser {
 	private static final long serialVersionUID = 1L;
 
@@ -87,6 +87,7 @@ public class StanfordNlpPipeline extends AbstractLanguageAnalyser {
 		return annotation;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLP pipeline annotators (overrides annotators property from properties and propertiesFile)", defaultValue = "tokenize,ssplit,pos,lemma,ner,parse,coref")
 	public void setAnnotators(String annotators) {
 		this.annotators = annotators;
@@ -96,6 +97,7 @@ public class StanfordNlpPipeline extends AbstractLanguageAnalyser {
 		return annotators;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLP pipeline properties (command-line style, e.g. -ner.useSUTime 0)", defaultValue = "")
 	public void setProperties(String properties) {
 		this.properties = properties;
@@ -105,6 +107,7 @@ public class StanfordNlpPipeline extends AbstractLanguageAnalyser {
 		return properties;
 	}
 
+	@Optional
 	@CreoleParameter(comment = "StanfordNLP pipeline properties file (these properties are overridden by properties command-line string)")
 	public void setPropertiesFile(URL properties) {
 		this.propertiesFile = properties;
