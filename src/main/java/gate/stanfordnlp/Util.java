@@ -59,4 +59,13 @@ public class Util {
 	public static boolean noValue(String string) {
 		return !hasValue(string);
 	}
+
+	@SafeVarargs
+	public static <E> List<E> asList(E... es) {
+		List<E> list = new ArrayList<>();
+		for (E e : es) {
+			list.add(e);
+		}
+		return list;
+	}
 }
