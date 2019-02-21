@@ -1,6 +1,7 @@
 package gate.stanfordnlp;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -120,7 +121,7 @@ public class AnnotationMapper {
 				Map<IndexedWord, Annotation> wordMapping = new HashMap<>();
 				for (IndexedWord root : graph.getRoots()) {
 					Annotation semanticGraphAnnotation = addSemanticGraphWordAnnotations(outputAnnotationSet,
-							valueAnnotationType, graph, root, parentId, wordMapping);
+							valueAnnotationType, graph, root, parentId, wordMapping, new ArrayList<>());
 					rootAnnotationIds.add(semanticGraphAnnotation.getId());
 				}
 				for (IndexedWord source : wordMapping.keySet()) {
@@ -226,8 +227,8 @@ public class AnnotationMapper {
 	}
 
 	private static Annotation addSemanticGraphWordAnnotations(AnnotationSet outputAnnotationSet, String annotationType,
-			SemanticGraph graph, IndexedWord word, Integer parentId, Map<IndexedWord, Annotation> mapping)
-			throws InvalidOffsetException {
+			SemanticGraph graph, IndexedWord word, Integer parentId, Map<IndexedWord, Annotation> mapping,
+			Collection<IndexedWord> parents) throws InvalidOffsetException {
 		Annotation gateAnnotation = null;
 		if (mapping.containsKey(word)) {
 			gateAnnotation = mapping.get(word);
@@ -240,13 +241,17 @@ public class AnnotationMapper {
 		}
 		Integer gateId = gateAnnotation != null ? gateAnnotation.getId() : parentId;
 		List<Integer> childAnnotationIds = new ArrayList<>();
+		parents.add(word);
 		for (IndexedWord child : graph.getChildList(word)) {
-			Annotation childAnnotation = addSemanticGraphWordAnnotations(outputAnnotationSet, annotationType, graph,
-					child, gateId, mapping);
-			if (childAnnotation != null) {
-				childAnnotationIds.add(childAnnotation.getId());
+			if (!parents.contains(child)) {
+				Annotation childAnnotation = addSemanticGraphWordAnnotations(outputAnnotationSet, annotationType, graph,
+						child, gateId, mapping, parents);
+				if (childAnnotation != null) {
+					childAnnotationIds.add(childAnnotation.getId());
+				}
 			}
 		}
+		parents.remove(word);
 		if (gateAnnotation != null) {
 			gateAnnotation.getFeatures().put(FEATURE_PARENT, parentId);
 			gateAnnotation.getFeatures().put(FEATURE_CHILDREN, childAnnotationIds);
