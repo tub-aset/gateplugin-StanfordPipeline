@@ -5,13 +5,21 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Properties;
 
+import org.apache.log4j.Logger;
+
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.StringUtils;
 import gate.AnnotationSet;
+import gate.Factory;
+import gate.Factory.DuplicationContext;
+import gate.Gate;
 import gate.Resource;
 import gate.creole.AbstractLanguageAnalyser;
+import gate.creole.AbstractResource;
+import gate.creole.CustomDuplication;
 import gate.creole.ExecutionException;
+import gate.creole.ResourceData;
 import gate.creole.ResourceInstantiationException;
 import gate.creole.metadata.CreoleParameter;
 import gate.creole.metadata.CreoleResource;
@@ -19,8 +27,9 @@ import gate.creole.metadata.Optional;
 import gate.creole.metadata.RunTime;
 
 @CreoleResource(name = "StanfordNlpPipeline", comment = "This is a simple Stanford NLP Pipeline")
-public class StanfordNlpPipeline extends AbstractLanguageAnalyser {
-	private static final long serialVersionUID = 1L;
+public class StanfordNlpPipeline extends AbstractLanguageAnalyser implements CustomDuplication {
+	private static final long serialVersionUID = -474306293452776717L;
+	private static Logger logger = Logger.getLogger(StanfordNlpPipeline.class);
 
 	private String annotators;
 	private String properties;
@@ -66,6 +75,23 @@ public class StanfordNlpPipeline extends AbstractLanguageAnalyser {
 	public void cleanup() {
 		pipeline = null;
 		super.cleanup();
+	}
+
+	@Override
+	public Resource duplicate(DuplicationContext ctx) throws ResourceInstantiationException {
+		ResourceData resourceData = Gate.getCreoleRegister().get(StanfordNlpPipeline.class.getCanonicalName());
+		StanfordNlpPipeline duplicate = new StanfordNlpPipeline();
+
+		duplicate.setName(resourceData.getName() + "_" + Gate.genSym());
+		AbstractResource.setParameterValues(duplicate, getInitParameterValues());
+		AbstractResource.setParameterValues(duplicate, getRuntimeParameterValues());
+		duplicate.setFeatures(Factory.newFeatureMap());
+		duplicate.getFeatures().putAll(getFeatures());
+
+		duplicate.pipeline = pipeline;
+
+		resourceData.addInstantiation(duplicate);
+		return duplicate;
 	}
 
 	@Override

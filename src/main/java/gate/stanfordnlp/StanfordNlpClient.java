@@ -8,6 +8,8 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Properties;
 
+import org.apache.log4j.Logger;
+
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLPClient;
 import gate.AnnotationSet;
@@ -22,7 +24,8 @@ import gate.creole.metadata.RunTime;
 
 @CreoleResource(name = "StanfordNlpClient", comment = "This is a interface for StanfordCoreNLPClient")
 public class StanfordNlpClient extends AbstractLanguageAnalyser {
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -6194526132377800058L;
+	private static Logger logger = Logger.getLogger(StanfordNlpClient.class);
 
 	private String host;
 	private Integer port;
