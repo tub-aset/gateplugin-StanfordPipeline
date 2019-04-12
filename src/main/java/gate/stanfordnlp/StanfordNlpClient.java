@@ -75,11 +75,6 @@ public class StanfordNlpClient extends AbstractLanguageAnalyser {
 	}
 
 	@Override
-	public void reInit() throws ResourceInstantiationException {
-		init();
-	}
-
-	@Override
 	public void cleanup() {
 		pipeline = null;
 		super.cleanup();
