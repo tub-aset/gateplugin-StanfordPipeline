@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +25,11 @@ import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.EnhancedPlusPlusDe
 import edu.stanford.nlp.semgraph.SemanticGraphEdge;
 import edu.stanford.nlp.trees.GrammaticalRelation;
 import edu.stanford.nlp.trees.Tree;
+import edu.stanford.nlp.trees.TreeCoreAnnotations.BinarizedTreeAnnotation;
+import edu.stanford.nlp.trees.TreeCoreAnnotations.KBestTreesAnnotation;
 import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
+import edu.stanford.nlp.util.IdentityHashSet;
 import edu.stanford.nlp.util.TypesafeMap;
 import gate.Annotation;
 import gate.AnnotationSet;
@@ -38,40 +42,63 @@ import gate.util.InvalidOffsetException;
 
 public class AnnotationMapper {
 
-	private static final String FEATURE_PARENT = "_parent";
-	private static final String FEATURE_CHILDREN = "_children";
+	public final String FEATURE_PARENT = "_parent";
+	public final String FEATURE_CHILDREN = "_children";
 
-	private static final String ANNOTATIONTYPE_COREF = "Coref";
-	private static final String COREF_FEATURE_MENTIONTYPE = "type";
-	private static final String COREF_FEATURE_NUMBER = "number";
-	private static final String COREF_FEATURE_GENDER = "gender";
-	private static final String COREF_FEATURE_ANIMACY = "animacy";
-	private static final String COREF_FEATURE_REPRESENTATIVE = "representative";
-	private static final String COREF_FEATURE_ISREPRESENTATIVE = "isrepresentative";
-	private static final String RELATION_COREF = "Coref";
+	public final String ANNOTATIONTYPE_COREF = "Coref";
+	public final String COREF_FEATURE_MENTIONTYPE = "type";
+	public final String COREF_FEATURE_NUMBER = "number";
+	public final String COREF_FEATURE_GENDER = "gender";
+	public final String COREF_FEATURE_ANIMACY = "animacy";
+	public final String COREF_FEATURE_REPRESENTATIVE = "representative";
+	public final String COREF_FEATURE_ISREPRESENTATIVE = "isrepresentative";
+	public final String RELATION_COREF = "Coref";
 
-	private static final String SEMANTICGRAPH_FEATURE_WEIGHT = "weight";
-	private static final String SEMANTICGRAPH_FEATURE_LONGNAME = "longname";
-	private static final String SEMANTICGRAPH_FEATURE_SHORTNAME = "shortname";
-	private static final String SEMANTICGRAPH_FEATURE_SPECIFIC = "specific";
+	public final String SEMANTICGRAPH_FEATURE_WEIGHT = "weight";
+	public final String SEMANTICGRAPH_FEATURE_LONGNAME = "longname";
+	public final String SEMANTICGRAPH_FEATURE_SHORTNAME = "shortname";
+	public final String SEMANTICGRAPH_FEATURE_SPECIFIC = "specific";
 
-	private static final String TREE_FEATURE_LABEL = "label";
-	private static final String TREE_FEATURE_VALUE = "value";
-	private static final String TREE_FEATURE_SCORE = "score";
+	public final String TREE_FEATURE_LABEL = "label";
+	public final String TREE_FEATURE_VALUE = "value";
+	public final String TREE_FEATURE_SCORE = "score";
 
 	@SuppressWarnings("deprecation")
-	private static final Class<?>[] INDIVIDUAL_ANNOTATIONS = new Class[] { TreeAnnotation.class,
+	private final Class<?>[] INDIVIDUAL_ANNOTATIONS = new Class[] {
+			// edu.stanford.nlp.trees.TreeCoreAnnotations
+			TreeAnnotation.class, BinarizedTreeAnnotation.class, KBestTreesAnnotation.class,
+			// edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations
 			BasicDependenciesAnnotation.class, EnhancedDependenciesAnnotation.class,
 			EnhancedPlusPlusDependenciesAnnotation.class, AlternativeDependenciesAnnotation.class,
 			edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedCCProcessedDependenciesAnnotation.class,
 			edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedDependenciesAnnotation.class,
-			edu.stanford.nlp.coref.data.CorefChain.class,
+			// edu.stanford.nlp.coref.CorefCoreAnnotations
 			edu.stanford.nlp.coref.CorefCoreAnnotations.CorefChainAnnotation.class,
-			edu.stanford.nlp.dcoref.CorefChain.class,
+			edu.stanford.nlp.coref.CorefCoreAnnotations.CorefMentionsAnnotation.class,
+			edu.stanford.nlp.coref.data.CorefChain.class,
+			// edu.stanford.nlp.dcoref.CorefCoreAnnotations
 			edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation.class,
-			edu.stanford.nlp.coref.CorefCoreAnnotations.CorefMentionsAnnotation.class };
+			edu.stanford.nlp.dcoref.CorefChain.class };
 
-	public static void addGateAnnotations(AnnotationSet outputAnnotationSet, TypesafeMap annotation) throws Exception {
+	private final AnnotationSet annotationSet;
+	private final Set<Annotation> gateAnnotations;
+	private final Map<Object, Annotation> annotationMapping;
+
+	private final RelationSet relationSet;
+	private final Set<Relation> gateRelations;
+	private final Map<Object, Relation> relationMapping;
+
+	public AnnotationMapper(AnnotationSet annotationSet) {
+		this.annotationSet = annotationSet;
+		this.gateAnnotations = new IdentityHashSet<>();
+		this.annotationMapping = new IdentityHashMap<>();
+
+		this.relationSet = annotationSet.getRelations();
+		this.gateRelations = new IdentityHashSet<>();
+		this.relationMapping = new IdentityHashMap<>();
+	}
+
+	public void addGateAnnotations(TypesafeMap annotation) throws Exception {
 
 		StanfordMapUtil.traversePreOrder(annotation.getClass(), annotation, new Callback() {
 
@@ -85,13 +112,13 @@ public class AnnotationMapper {
 					Long start = annotation.get(CharacterOffsetBeginAnnotation.class).longValue();
 					Long end = annotation.get(CharacterOffsetEndAnnotation.class).longValue();
 
-					addGateAnnotation(outputAnnotationSet, annotationType, start, end, annotation, values);
+					addGateAnnotation(annotationType, start, end, annotation, values);
 				} else {
 					if (keyClasses.contains(edu.stanford.nlp.coref.CorefCoreAnnotations.CorefChainAnnotation.class)) {
-						addCorefAnnotations(outputAnnotationSet, annotation);
+						addCorefAnnotations(annotation);
 					}
 					if (keyClasses.contains(edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation.class)) {
-						addDcorefAnnotations(outputAnnotationSet, annotation);
+						addDcorefAnnotations(annotation);
 					}
 				}
 			}
@@ -99,9 +126,10 @@ public class AnnotationMapper {
 		});
 	}
 
-	private static Annotation addGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType, Long start,
-			Long end, TypesafeMap annotation, TypesafeMap values) throws InvalidOffsetException {
-		Annotation gateAnnotation = getOrAddGateAnnotation(outputAnnotationSet, annotationType, start, end);
+	private Annotation addGateAnnotation(String annotationType, Long start, Long end, TypesafeMap annotation,
+			TypesafeMap values) throws InvalidOffsetException {
+		Annotation gateAnnotation = getOrAddGateAnnotation(annotationType, start, end);
+		annotationMapping.put(annotation, gateAnnotation);
 
 		for (Entry<Class<?>, Object> entry : putValuesIntoFeatures(values, gateAnnotation.getFeatures()).entrySet()) {
 			Class<?> valueKeyClass = entry.getKey();
@@ -110,9 +138,9 @@ public class AnnotationMapper {
 				Tree tree = (Tree) value;
 				Integer parentId = gateAnnotation.getId();
 				String valueAnnotationType = getGateName(valueKeyClass);
-				Annotation treeAnnotation = addTreeAnnotations(outputAnnotationSet, valueAnnotationType, tree,
-						parentId);
+				Annotation treeAnnotation = addTreeAnnotations(valueAnnotationType, tree, parentId);
 				gateAnnotation.getFeatures().put(getGateName(valueKeyClass), treeAnnotation.getId());
+				annotationMapping.put(value, gateAnnotation);
 			} else if (value instanceof SemanticGraph) {
 				SemanticGraph graph = (SemanticGraph) value;
 				Integer parentId = gateAnnotation.getId();
@@ -120,14 +148,14 @@ public class AnnotationMapper {
 				List<Integer> rootAnnotationIds = new ArrayList<>();
 				Map<IndexedWord, Annotation> wordMapping = new HashMap<>();
 				for (IndexedWord root : graph.getRoots()) {
-					Annotation semanticGraphAnnotation = addSemanticGraphWordAnnotations(outputAnnotationSet,
-							valueAnnotationType, graph, root, parentId, wordMapping, new ArrayList<>());
+					Annotation semanticGraphAnnotation = addSemanticGraphWordAnnotations(valueAnnotationType, graph,
+							root, parentId, wordMapping, new ArrayList<>());
 					rootAnnotationIds.add(semanticGraphAnnotation.getId());
+					annotationMapping.putAll(wordMapping);
 				}
 				for (IndexedWord source : wordMapping.keySet()) {
 					for (SemanticGraphEdge edge : graph.outgoingEdgeList(source)) {
-						addSemanticGraphEdgeAnnotations(outputAnnotationSet.getRelations(), valueAnnotationType, edge,
-								wordMapping);
+						addSemanticGraphEdgeAnnotations(valueAnnotationType, edge, wordMapping);
 					}
 				}
 
@@ -137,7 +165,7 @@ public class AnnotationMapper {
 		return gateAnnotation;
 	}
 
-	private static Map<Class<?>, Object> putValuesIntoFeatures(TypesafeMap values, FeatureMap features) {
+	private Map<Class<?>, Object> putValuesIntoFeatures(TypesafeMap values, FeatureMap features) {
 		Map<Class<?>, Object> others = new LinkedHashMap<>();
 
 		for (Class<?> valueKeyClass : values.keySet()) {
@@ -152,24 +180,24 @@ public class AnnotationMapper {
 		return others;
 	}
 
-	private static Annotation getOrAddGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType,
-			Long start, Long end) throws InvalidOffsetException {
-		AnnotationSet others = outputAnnotationSet.get(annotationType, start, end);
+	private Annotation getOrAddGateAnnotation(String annotationType, Long start, Long end)
+			throws InvalidOffsetException {
+		AnnotationSet others = annotationSet.get(annotationType, start, end).getCovering(annotationType, start, end);
 		if (others.size() == 1) {
 			return others.iterator().next();
 		} else {
-			return addGateAnnotation(outputAnnotationSet, annotationType, start, end);
+			return addGateAnnotation(annotationType, start, end);
 		}
 	}
 
-	private static Annotation addGateAnnotation(AnnotationSet outputAnnotationSet, String annotationType, Long start,
-			Long end) throws InvalidOffsetException {
-		Integer id = outputAnnotationSet.add(start, end, annotationType, Factory.newFeatureMap());
-		return outputAnnotationSet.get(id);
+	private Annotation addGateAnnotation(String annotationType, Long start, Long end) throws InvalidOffsetException {
+		Integer id = annotationSet.add(start, end, annotationType, Factory.newFeatureMap());
+		Annotation annotation = annotationSet.get(id);
+		gateAnnotations.add(annotation);
+		return annotation;
 	}
 
-	private static void addCorefAnnotations(AnnotationSet outputAnnotationSet, TypesafeMap annotation)
-			throws InvalidOffsetException {
+	private void addCorefAnnotations(TypesafeMap annotation) throws InvalidOffsetException {
 		List<CoreMap> sentences = annotation.get(SentencesAnnotation.class);
 		for (edu.stanford.nlp.coref.data.CorefChain cc : annotation
 				.get(edu.stanford.nlp.coref.CorefCoreAnnotations.CorefChainAnnotation.class).values()) {
@@ -179,7 +207,8 @@ public class AnnotationMapper {
 				List<CoreLabel> tokens = sentence.get(TokensAnnotation.class);
 				Long start = Long.valueOf(tokens.get(mention.startIndex - 1).beginPosition());
 				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).endPosition());
-				Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start, end);
+				Annotation gateAnnotation = addGateAnnotation(ANNOTATIONTYPE_COREF, start, end);
+				annotationMapping.put(mention, gateAnnotation);
 
 				FeatureMap gateFeatures = gateAnnotation.getFeatures();
 				gateFeatures.put(COREF_FEATURE_MENTIONTYPE, mention.mentionType.toString());
@@ -192,13 +221,14 @@ public class AnnotationMapper {
 				relationIds.add(gateAnnotation.getId());
 			}
 			if (!relationIds.isEmpty()) {
-				outputAnnotationSet.getRelations().addRelation(RELATION_COREF, Util.toIntArray(relationIds));
+				Relation gateRelation = relationSet.addRelation(RELATION_COREF, Util.toIntArray(relationIds));
+				gateRelations.add(gateRelation);
+				relationMapping.put(cc, gateRelation);
 			}
 		}
 	}
 
-	private static void addDcorefAnnotations(AnnotationSet outputAnnotationSet, TypesafeMap annotation)
-			throws InvalidOffsetException {
+	private void addDcorefAnnotations(TypesafeMap annotation) throws InvalidOffsetException {
 		List<CoreMap> sentences = annotation.get(SentencesAnnotation.class);
 		for (edu.stanford.nlp.dcoref.CorefChain cc : annotation
 				.get(edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation.class).values()) {
@@ -208,7 +238,8 @@ public class AnnotationMapper {
 				List<CoreLabel> tokens = sentence.get(TokensAnnotation.class);
 				Long start = Long.valueOf(tokens.get(mention.startIndex - 1).beginPosition());
 				Long end = Long.valueOf(tokens.get(mention.endIndex - 2).endPosition());
-				Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, ANNOTATIONTYPE_COREF, start, end);
+				Annotation gateAnnotation = addGateAnnotation(ANNOTATIONTYPE_COREF, start, end);
+				annotationMapping.put(mention, gateAnnotation);
 
 				FeatureMap gateFeatures = gateAnnotation.getFeatures();
 				gateFeatures.put(COREF_FEATURE_MENTIONTYPE, mention.mentionType.toString());
@@ -221,21 +252,23 @@ public class AnnotationMapper {
 				relationIds.add(gateAnnotation.getId());
 			}
 			if (!relationIds.isEmpty()) {
-				outputAnnotationSet.getRelations().addRelation(RELATION_COREF, Util.toIntArray(relationIds));
+				Relation gateRelation = relationSet.addRelation(RELATION_COREF, Util.toIntArray(relationIds));
+				gateRelations.add(gateRelation);
+				relationMapping.put(cc, gateRelation);
 			}
 		}
 	}
 
-	private static Annotation addSemanticGraphWordAnnotations(AnnotationSet outputAnnotationSet, String annotationType,
-			SemanticGraph graph, IndexedWord word, Integer parentId, Map<IndexedWord, Annotation> mapping,
-			Collection<IndexedWord> parents) throws InvalidOffsetException {
+	private Annotation addSemanticGraphWordAnnotations(String annotationType, SemanticGraph graph, IndexedWord word,
+			Integer parentId, Map<IndexedWord, Annotation> mapping, Collection<IndexedWord> parents)
+			throws InvalidOffsetException {
 		Annotation gateAnnotation = null;
 		if (mapping.containsKey(word)) {
 			gateAnnotation = mapping.get(word);
 		} else if (word.beginPosition() >= 0 && word.endPosition() >= 0) {
 			Long start = Long.valueOf(word.beginPosition());
 			Long end = Long.valueOf(word.endPosition());
-			gateAnnotation = addGateAnnotation(outputAnnotationSet, annotationType, start, end);
+			gateAnnotation = addGateAnnotation(annotationType, start, end);
 			putValuesIntoFeatures(word, gateAnnotation.getFeatures());
 			mapping.put(word, gateAnnotation);
 		}
@@ -244,8 +277,8 @@ public class AnnotationMapper {
 		parents.add(word);
 		for (IndexedWord child : graph.getChildList(word)) {
 			if (!parents.contains(child)) {
-				Annotation childAnnotation = addSemanticGraphWordAnnotations(outputAnnotationSet, annotationType, graph,
-						child, gateId, mapping, parents);
+				Annotation childAnnotation = addSemanticGraphWordAnnotations(annotationType, graph, child, gateId,
+						mapping, parents);
 				if (childAnnotation != null) {
 					childAnnotationIds.add(childAnnotation.getId());
 				}
@@ -259,8 +292,8 @@ public class AnnotationMapper {
 		return gateAnnotation;
 	}
 
-	private static void addSemanticGraphEdgeAnnotations(RelationSet relationSet, String valueAnnotationType,
-			SemanticGraphEdge edge, Map<IndexedWord, Annotation> wordMapping) {
+	private void addSemanticGraphEdgeAnnotations(String valueAnnotationType, SemanticGraphEdge edge,
+			Map<IndexedWord, Annotation> wordMapping) {
 		Integer sourceId = wordMapping.get(edge.getSource()).getId();
 		Integer targetId = wordMapping.get(edge.getTarget()).getId();
 		double weight = edge.getWeight();
@@ -273,6 +306,9 @@ public class AnnotationMapper {
 			String specific = relation.getSpecific();
 
 			Relation gateRelation = relationSet.addRelation(valueAnnotationType, sourceId, targetId);
+			gateRelations.add(gateRelation);
+			relationMapping.put(relation, gateRelation);
+
 			FeatureMap relationFeatureMap = gateRelation.getFeatures();
 			relationFeatureMap.put(SEMANTICGRAPH_FEATURE_WEIGHT, weight);
 			relationFeatureMap.put(SEMANTICGRAPH_FEATURE_LONGNAME, longName);
@@ -292,8 +328,8 @@ public class AnnotationMapper {
 		} while (relation != null);
 	}
 
-	private static Annotation addTreeAnnotations(AnnotationSet outputAnnotationSet, String annotationType, Tree tree,
-			Integer parentId) throws InvalidOffsetException {
+	private Annotation addTreeAnnotations(String annotationType, Tree tree, Integer parentId)
+			throws InvalidOffsetException {
 		tree.setSpans();
 
 		Tree startLeave = tree.getLeaves().get(tree.getSpan().getSource());
@@ -306,8 +342,8 @@ public class AnnotationMapper {
 			end = ((TypesafeMap) endLeave.label()).get(CharacterOffsetEndAnnotation.class);
 		}
 
-		Annotation gateAnnotation = addGateAnnotation(outputAnnotationSet, annotationType, start.longValue(),
-				end.longValue());
+		Annotation gateAnnotation = addGateAnnotation(annotationType, start.longValue(), end.longValue());
+		annotationMapping.put(tree, gateAnnotation);
 		gateAnnotation.getFeatures().put(TREE_FEATURE_LABEL, tree.label() != null ? tree.label().value() : null);
 		gateAnnotation.getFeatures().put(TREE_FEATURE_VALUE, tree.value());
 		gateAnnotation.getFeatures().put(TREE_FEATURE_SCORE, tree.score());
@@ -319,8 +355,7 @@ public class AnnotationMapper {
 		List<Integer> childAnnotationIds = new ArrayList<>();
 		for (int i = 0; i < tree.children().length; i++) {
 			Tree child = tree.children()[i];
-			Annotation childAnnotation = addTreeAnnotations(outputAnnotationSet, annotationType, child,
-					gateAnnotation.getId());
+			Annotation childAnnotation = addTreeAnnotations(annotationType, child, gateAnnotation.getId());
 			childAnnotationIds.add(childAnnotation.getId());
 		}
 
