@@ -49,7 +49,7 @@
 		provide here. See the pom.xml reference for full details -->
 
 	<properties>
-		<stanford.corenlp.version>3.9.2</stanford.corenlp.version>
+		<stanford.corenlp.version>4.4.0</stanford.corenlp.version>
 	</properties>
 
 
